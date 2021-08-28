@@ -132,8 +132,7 @@ app.get('/', async (req, res) => {
     limit = Number(req.query.limit) || Number(req.query.l) || 9999999999999999
     filter = req.query.filter || req.query.f || '{}'
 
-    console.log(skyblockDB)
-    console.log(skyblockDB == null)
+    console.log(process.env.DATABASE_URI)
     if (req.query.aggregate) {
         let aggregate
         try {
