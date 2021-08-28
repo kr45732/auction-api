@@ -4,7 +4,6 @@ const { MongoClient } = require('mongodb')
 const JSON5 = require('json5')
 
 const app = express()
-const PORT = process.env.PORT || 3000
 
 let db
 let skyblockDB
@@ -12,7 +11,7 @@ let config = {
     pageSize: 20
 }
 
-let a = false
+let auctionHouseLoopStarted = false
 
 /* Update database */
 async function startAuctionHouseLoop() {
@@ -134,8 +133,24 @@ app.get('/', async (req, res) => {
     limit = Number(req.query.limit) || Number(req.query.l) || 9999999999999999
     filter = req.query.filter || req.query.f || '{}'
 
-    console.log(process.env.DATABASE_URI)
-    console.log(a)
+    if (skyblockDB == null) {
+        MongoClient.connect(process.env.DATABASE_URI, { useNewUrlParser: true, useUnifiedTopology: true }, (err, DB) => {
+            db = DB
+            skyblockDB = DB.db('skyblock')
+        })
+
+        while (typeof db == 'undefined') {
+            await sleep(10)
+        }
+
+        console.log("Successfully connected to the database")
+    }
+
+    if (!auctionHouseLoopStarted) {
+        startAuctionHouseLoop()
+        auctionHouseLoopStarted = true
+    }
+
     if (req.query.aggregate) {
         let aggregate
         try {
@@ -173,21 +188,19 @@ app.get('/', async (req, res) => {
     })
 })
 
-app.listen(PORT, async () => {
-    a = true
-    console.log("HERE YES YESY EYS")
-    MongoClient.connect(process.env.DATABASE_URI, { useNewUrlParser: true, useUnifiedTopology: true }, (err, DB) => {
-        db = DB
-        skyblockDB = DB.db('skyblock')
-    })
+// app.listen(process.env.PORT || 3000, async () => {
+//     MongoClient.connect(process.env.DATABASE_URI, { useNewUrlParser: true, useUnifiedTopology: true }, (err, DB) => {
+//         db = DB
+//         skyblockDB = DB.db('skyblock')
+//     })
 
-    while (typeof db == 'undefined') {
-        await sleep(10)
-    }
+//     while (typeof db == 'undefined') {
+//         await sleep(10)
+//     }
 
-    console.log("Successfully connected to the database. Server started. Starting auction loop.")
+//     console.log("Successfully connected to the database. Server started. Starting auction loop.")
 
-    startAuctionHouseLoop()
-})
+//     startAuctionHouseLoop()
+// })
 
 module.exports = app
