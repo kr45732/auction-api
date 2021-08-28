@@ -4,6 +4,7 @@ const { MongoClient } = require('mongodb')
 const JSON5 = require('json5')
 
 const app = express()
+const PORT = process.env.PORT || 3000;
 
 let db
 let skyblockDB
@@ -170,7 +171,7 @@ app.get('/', async (req, res) => {
     })
 })
 
-app.listen(3000, async () => {
+app.listen(PORT, async () => {
     console.log("HERE YES YESY EYS")
     MongoClient.connect(process.env.DATABASE_URI, { useNewUrlParser: true, useUnifiedTopology: true }, (err, DB) => {
         db = DB
