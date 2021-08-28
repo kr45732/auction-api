@@ -116,13 +116,13 @@ async function getSecondsUntilApiUpdate() {
 app.get('/skyblock/auctions/', async (req, res) => {
     res.setHeader('Content-Type', 'application/json')
 
-    if (req.query.key != process.env['KEY']) {
+    if (req.query.key != process.env['API_KEY']) {
         res.status(404).send({ error: "Unauthorized" })
         return
     }
 
     console.log(`New request: ${req.url.replace(
-        process.env['KEY'], "[REMOVED]"
+        process.env['API_KEY'], "[REMOVED]"
     )}`)
 
     query = req.query.query || req.query.q || '{}'
@@ -169,7 +169,7 @@ app.get('/skyblock/auctions/', async (req, res) => {
 })
 
 app.listen(3000, async () => {
-    MongoClient.connect(process.env['uri'], { useNewUrlParser: true, useUnifiedTopology: true }, (err, DB) => {
+    MongoClient.connect(process.env['DATABASE_URI'], { useNewUrlParser: true, useUnifiedTopology: true }, (err, DB) => {
         db = DB
         skyblockDB = DB.db('skyblock')
     })
