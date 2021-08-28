@@ -64,6 +64,7 @@ async function getFullAuctionHouse() {
         let failedPages = []
         let ah = []
         for (let pageNum = 0; pageNum < totalPages; pageNum++) {
+            console.log(`Getting page ${pageNum}`)
             getAuctionPage(pageNum).then((page) => {
                 for (i of page.auctions) {
                     if (i["item_lore"].includes("Right-click to add this pet to\n§eyour pet menu") && i["bin"]) {
@@ -104,6 +105,7 @@ async function getFullAuctionHouse() {
 
 async function getAuctionPage(page = 0) {
     return fetch(`https://api.hypixel.net/skyblock/auctions?page=${page}`).then((res) => {
+        console.log(`${res.ok} - ${page}`)
         if (!res.ok) {
             throw new Error(res)
         }
@@ -146,7 +148,7 @@ app.get('/', async (req, res) => {
     limit = Number(req.query.limit) || Number(req.query.l) || 9999999999999999
     filter = req.query.filter || req.query.f || '{}'
 
-    if (skyblockDB == null) {
+    if (typeof db == 'undefined') {
         MongoClient.connect(process.env.DATABASE_URI, { useNewUrlParser: true, useUnifiedTopology: true }, (err, DB) => {
             db = DB
             skyblockDB = DB.db('skyblock')
@@ -156,7 +158,7 @@ app.get('/', async (req, res) => {
             await sleep(10)
         }
 
-        console.log("Successfully connected to the database")
+        console.log(`Successfully connected to the database\ndb: ${db}\nskyblockDB: ${skyblockDB}`)
     }
 
     if (!auctionHouseLoopStarted) {
