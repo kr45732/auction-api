@@ -171,6 +171,7 @@ app.get('/', async (req, res) => {
 })
 
 app.listen(3000, async () => {
+    console.log("HERE YES YESY EYS")
     MongoClient.connect(process.env.DATABASE_URI, { useNewUrlParser: true, useUnifiedTopology: true }, (err, DB) => {
         db = DB
         skyblockDB = DB.db('skyblock')
