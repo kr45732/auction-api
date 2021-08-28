@@ -13,12 +13,24 @@ let config = {
 
 let auctionHouseLoopStarted = false
 
+let pageInfo = {
+    lastUpdated: Date.now(),
+    lastPages: 0,
+    lastCompletedPages: 0,
+    lastFailedPages: 0
+}
+
 /* Update database */
 async function startAuctionHouseLoop() {
     while (true) {
         let ahStartTime = Date.now()
         let ah = await getFullAuctionHouse()
         let ahFinishTime = Date.now()
+
+        pageInfo.lastUpdated = Date.now()
+        pageInfo.lastCompletedPages = ah.completedPages.length
+        pageInfo.lastFailedPages = ah.failedPages.length
+        pageInfo.lastPages = pageInfo.lastCompletedPages + pageInfo.lastFailedPages
 
         if (ah.failedPages.length != 0) {
             console.warn(`Failed to get ${ah.failedPages.length} pages. Successfully got ${ah.completedPages.length} pages`)
@@ -64,6 +76,7 @@ async function getFullAuctionHouse() {
                 }
 
                 completedPages.push(pageNum)
+                console.log(`Completed page ${pageNum}`)
 
                 if ((completedPages.length + failedPages.length) === totalPages)
                     return resolve({
@@ -147,6 +160,7 @@ app.get('/', async (req, res) => {
     }
 
     if (!auctionHouseLoopStarted) {
+        console.log("Starting auction house loop")
         startAuctionHouseLoop()
         auctionHouseLoopStarted = true
     }
@@ -186,6 +200,10 @@ app.get('/', async (req, res) => {
 
         res.json(found)
     })
+})
+
+app.get("/information", async (req, res) => {
+    res.json({ last_updated: `${(Date.now() - pageInfo.lastUpdated) / 1000.0} seconds ago`, page_info: pageInfo })
 })
 
 // app.listen(process.env.PORT || 3000, async () => {
