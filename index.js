@@ -113,16 +113,16 @@ async function getSecondsUntilApiUpdate() {
 }
 
 /* Express App */
-app.get('/skyblock/auctions/', async (req, res) => {
+app.get('/', async (req, res) => {
     res.setHeader('Content-Type', 'application/json')
 
-    if (req.query.key != process.env['API_KEY']) {
+    if (req.query.key != process.env.API_KEY) {
         res.status(404).send({ error: "Unauthorized" })
         return
     }
 
     console.log(`New request: ${req.url.replace(
-        process.env['API_KEY'], "[REMOVED]"
+        process.env.API_KEY, "[REMOVED]"
     )}`)
 
     query = req.query.query || req.query.q || '{}'
@@ -131,6 +131,8 @@ app.get('/skyblock/auctions/', async (req, res) => {
     limit = Number(req.query.limit) || Number(req.query.l) || 9999999999999999
     filter = req.query.filter || req.query.f || '{}'
 
+    console.log(skyblockDB)
+    console.log(skyblockDB == null)
     if (req.query.aggregate) {
         let aggregate
         try {
@@ -169,7 +171,7 @@ app.get('/skyblock/auctions/', async (req, res) => {
 })
 
 app.listen(3000, async () => {
-    MongoClient.connect(process.env['DATABASE_URI'], { useNewUrlParser: true, useUnifiedTopology: true }, (err, DB) => {
+    MongoClient.connect(process.env.DATABASE_URI, { useNewUrlParser: true, useUnifiedTopology: true }, (err, DB) => {
         db = DB
         skyblockDB = DB.db('skyblock')
     })
