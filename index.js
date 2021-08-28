@@ -66,6 +66,7 @@ async function getFullAuctionHouse() {
         for (let pageNum = 0; pageNum < totalPages; pageNum++) {
             console.log(`Getting page ${pageNum}`)
             getAuctionPage(pageNum).then((page) => {
+                console.log(`then 2 - ${pageNum}`)
                 for (i of page.auctions) {
                     if (i["item_lore"].includes("Right-click to add this pet to\n§eyour pet menu") && i["bin"]) {
                         ah.push({
@@ -208,19 +209,21 @@ app.get("/information", async (req, res) => {
     res.json({ last_updated: `${(Date.now() - pageInfo.lastUpdated) / 1000.0} seconds ago`, page_info: pageInfo })
 })
 
-// app.listen(process.env.PORT || 3000, async () => {
-//     MongoClient.connect(process.env.DATABASE_URI, { useNewUrlParser: true, useUnifiedTopology: true }, (err, DB) => {
-//         db = DB
-//         skyblockDB = DB.db('skyblock')
-//     })
+app.listen(process.env.PORT || 3000, async () => {
+    MongoClient.connect(process.env.DATABASE_URI, { useNewUrlParser: true, useUnifiedTopology: true }, (err, DB) => {
+        db = DB
+        skyblockDB = DB.db('skyblock')
+    })
 
-//     while (typeof db == 'undefined') {
-//         await sleep(10)
-//     }
+    while (typeof db == 'undefined') {
+        await sleep(10)
+    }
 
-//     console.log("Successfully connected to the database. Server started. Starting auction loop.")
+    console.log("Successfully connected to the database. Server started. Starting auction loop.")
 
-//     startAuctionHouseLoop()
-// })
+    if (!auctionHouseLoopStarted) {
+        startAuctionHouseLoop()
+    }
+})
 
 module.exports = app
