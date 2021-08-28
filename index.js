@@ -4,13 +4,15 @@ const { MongoClient } = require('mongodb')
 const JSON5 = require('json5')
 
 const app = express()
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000
 
 let db
 let skyblockDB
 let config = {
     pageSize: 20
 }
+
+let a = false
 
 /* Update database */
 async function startAuctionHouseLoop() {
@@ -133,6 +135,7 @@ app.get('/', async (req, res) => {
     filter = req.query.filter || req.query.f || '{}'
 
     console.log(process.env.DATABASE_URI)
+    console.log(a)
     if (req.query.aggregate) {
         let aggregate
         try {
@@ -171,6 +174,7 @@ app.get('/', async (req, res) => {
 })
 
 app.listen(PORT, async () => {
+    a = true
     console.log("HERE YES YESY EYS")
     MongoClient.connect(process.env.DATABASE_URI, { useNewUrlParser: true, useUnifiedTopology: true }, (err, DB) => {
         db = DB
@@ -186,4 +190,4 @@ app.listen(PORT, async () => {
     startAuctionHouseLoop()
 })
 
-module.exports = app;
+module.exports = app
