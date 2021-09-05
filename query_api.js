@@ -3,6 +3,7 @@ const fetch = require('node-fetch')
 const { MongoClient } = require('mongodb')
 const JSON5 = require('json5')
 const { Webhook } = require("webhook-discord")
+const nbt = require('nbt')
 
 const app = express()
 const webhook = new Webhook(process.env.WEBHOOK_URL)
@@ -24,6 +25,8 @@ let pageInfo = {
     unauthorized_requests: 0
 }
 
+const collectionName = "query"
+
 /* Update database */
 async function startAuctionHouseLoop() {
     while (true) {
@@ -40,30 +43,19 @@ async function startAuctionHouseLoop() {
         pageInfo.last_total_pages = pageInfo.last_completed_pages + pageInfo.last_failed_pages
 
         if (ah.failedPages.length != 0) {
-            sendWebhookErrorMessage(`Failed to get ${ah.failedPages.length} pages. Successfully got ${ah.completedPages.length} pages`)
+            sendWebhookErrorMessage(`Failed to get ${ah.failedPages.length} pages\nSuccessfully got ${ah.completedPages.length} pages`)
         }
 
         sendWebhookInfoMessage(`Got ${ah.auctions.length} auctions, inserting...`)
 
-        let collection = skyblockDB.collection("sb")
-
-        let oldPrices = await collection.find().toArray()
-        for (const newPrice of ah.auctions) {
-            for (let i = 0; i < oldPrices.length; i++) {
-                if (oldPrices[i]["item_name"] == newPrice["item_name"]) {
-                    oldPrices.splice(i, 1)
-                }
-            }
-        }
-        oldPrices = oldPrices.concat(ah.auctions)
-
+        let collection = skyblockDB.collection(collectionName)
         collection.drop()
         let databaseStartTime = Date.now()
-        collection.insertMany(oldPrices, async () => {
+        collection.insertMany(ah.auctions, async () => {
             sendWebhookInfoMessage(`Inserted ${ah.auctions.length} auctions in ${Date.now() - databaseStartTime}ms\n`)
         })
 
-        sendWebhookInfoMessage(`Total auction fetch time: ${ahFinishTime - ahStartTime}ms.\nExtra time: ${Date.now() - ahStartTime}ms`)
+        sendWebhookInfoMessage(`Total auction fetch time: ${ahFinishTime - ahStartTime}ms\nExtra time: ${Date.now() - ahStartTime}ms`)
 
         await sleep(240000)
         await sleep((await getSecondsUntilApiUpdate()) * 1000)
@@ -73,36 +65,36 @@ async function startAuctionHouseLoop() {
 /* Helper functions */
 async function getFullAuctionHouse() {
     let totalPages = (await getAuctionPage(0)).totalPages
-    sendWebhookInfoMessage(`Fetching ${totalPages} auction pages`)
+    sendWebhookInfoMessage(`Fetching ${totalPages} auction pages...`)
 
     let res = await new Promise(async (resolve) => {
         let completedPages = []
         let failedPages = []
         let newAuctionData = []
         for (let pageNum = 0; pageNum < totalPages; pageNum++) {
-            getAuctionPage(pageNum).then((page) => {
-                for (i of page.auctions) {
-                    if (i["item_lore"].includes("Right-click to add this pet to\n§eyour pet menu") && i["bin"]) {
-                        let itemName = `${i["item_name"]}_${i["tier"]}`.replace(/ /g, "_").toUpperCase()
-                        let price = i["starting_bid"]
+            await getAuctionPage(pageNum).then(async (page) => {
+                for (let i = 0; i < page.auctions.length; i++) {
+                    if (page.auctions[i]["bin"]) {
+                        await parse(Buffer.from(page.auctions[i]["item_bytes"], "base64")).then(data => {
+                            page.auctions[i]["item_id"] = data.value.i.value.value[0].tag.value.ExtraAttributes.value.id.value
 
-                        found = false
-                        for (let j = 0; j < newAuctionData.length; j++) {
-                            const element = newAuctionData[j]
-                            if (element["item_name"] == itemName) {
-                                newAuctionData[j]["starting_bid"] = Math.min(element["starting_bid"], price)
-                                found = true
-                                break
-                            }
-                        }
+                            try {
+                                let allEnchants = data.value.i.value.value[0].tag.value.ExtraAttributes.value.enchantments.value
+                                page.auctions[i]["enchants"] = []
+                                for (const ench in allEnchants) {
+                                    page.auctions[i]["enchants"].push(`${ench};${allEnchants[ench].value}`.toUpperCase())
+                                }
+                            } catch (e) { }
+                        }).catch(error => {
+                            sendWebhookErrorMessage(error)
+                        })
 
-                        if (!found) {
-                            newAuctionData.push({ item_name: itemName, starting_bid: price })
-                        }
+                        newAuctionData.push(page.auctions[i])
                     }
                 }
 
                 completedPages.push(pageNum)
+
                 if ((completedPages.length + failedPages.length) === totalPages)
                     return resolve({
                         success: true,
@@ -125,6 +117,18 @@ async function getFullAuctionHouse() {
     })
 
     return res
+}
+
+async function parse(data) {
+    return new Promise((resolve, reject) => {
+        nbt.parse(data, (error, datax) => {
+            if (error) {
+                return reject(error)
+            }
+
+            return resolve(datax)
+        })
+    })
 }
 
 async function getAuctionPage(page = 0) {
@@ -193,7 +197,7 @@ app.get('/', async (req, res) => {
     }
 
     let skipSize = page * 20
-    skyblockDB.collection("sb").find(query, { allowDiskUse: true }).sort(sort).skip(skipSize).limit(req.query.page === undefined ? limit : 20).project(filter).toArray(async (err, found) => {
+    skyblockDB.collection(collectionName).find(query, { allowDiskUse: true }).sort(sort).skip(skipSize).limit(req.query.page === undefined ? limit : 20).project(filter).toArray(async (err, found) => {
         if (err) {
             return res.status(500).json({ error: err })
         }
