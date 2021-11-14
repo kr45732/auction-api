@@ -25,6 +25,8 @@ let pageInfo = {
     unauthorized_requests: 0
 }
 
+let mcCodeRegex = new RegExp(/\u00A7[0-9A-FK-OR]/mgi);
+
 const collectionName = "query"
 
 /* Update database */
@@ -74,22 +76,32 @@ async function getFullAuctionHouse() {
         for (let pageNum = 0; pageNum < totalPages; pageNum++) {
             await getAuctionPage(pageNum).then(async (page) => {
                 for (let i = 0; i < page.auctions.length; i++) {
-                    if (page.auctions[i]["bin"]) {
-                        await parse(Buffer.from(page.auctions[i]["item_bytes"], "base64")).then(data => {
-                            page.auctions[i]["item_id"] = data.value.i.value.value[0].tag.value.ExtraAttributes.value.id.value
-
+                    let thisAuction = page.auctions[i];
+                    if (thisAuction["bin"]) {
+                        await parse(Buffer.from(thisAuction["item_bytes"], "base64")).then(data => {
+                            let enchants;
                             try {
                                 let allEnchants = data.value.i.value.value[0].tag.value.ExtraAttributes.value.enchantments.value
-                                page.auctions[i]["enchants"] = []
+                                enchants = []
                                 for (const ench in allEnchants) {
-                                    page.auctions[i]["enchants"].push(`${ench};${allEnchants[ench].value}`.toUpperCase())
+                                    enchants.push(`${ench};${allEnchants[ench].value}`.toUpperCase())
                                 }
                             } catch (e) { }
+
+                            newAuctionData.push({
+                                uuid: thisAuction.uuid,
+                                auctioneer: thisAuction.auctioneer,
+                                end: thisAuction.end,
+                                item_name: (thisAuction.item_name != "Enchanted Book" ? thisAuction.item_name : thisAuction.item_lore.split("\n")[0].replace(mcCodeRegex, "")),
+                                tier: thisAuction.tier,
+                                starting_bid: thisAuction.starting_bid,
+                                item_id: data.value.i.value.value[0].tag.value.ExtraAttributes.value.id.value,
+                                enchants: enchants
+                            })
+
                         }).catch(error => {
                             sendWebhookErrorMessage(error)
                         })
-
-                        newAuctionData.push(page.auctions[i])
                     }
                 }
 
@@ -199,6 +211,7 @@ app.get('/', async (req, res) => {
     let skipSize = page * 20
     skyblockDB.collection(collectionName).find(query, { allowDiskUse: true }).sort(sort).skip(skipSize).limit(req.query.page === undefined ? limit : 20).project(filter).toArray(async (err, found) => {
         if (err) {
+            m
             return res.status(500).json({ error: err })
         }
 
